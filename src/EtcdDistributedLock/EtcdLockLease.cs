@@ -12,7 +12,6 @@ public class EtcdLockLease : IAsyncDisposable
     private readonly long _ttlInSeconds;
     private readonly ILogger _logger;
     private readonly CancellationTokenSource _cancellationTokenSource;
-    private readonly CancellationToken _cancellationToken;
     private readonly Task _keepAlive;
 
     private EtcdLockLease(EtcdClient etcdClient, long leaseId, long ttlInSeconds, CancellationToken cancellationToken, ILogger logger)
@@ -22,18 +21,17 @@ public class EtcdLockLease : IAsyncDisposable
         _ttlInSeconds = ttlInSeconds;
         _logger = logger;
         _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        _cancellationToken = _cancellationTokenSource.Token;
 
         _keepAlive = Task.Factory.StartNew(
             (_) => KeepAlive(),
             null,
-            _cancellationToken,
+            _cancellationTokenSource.Token,
             TaskCreationOptions.LongRunning,
             TaskScheduler.Current)
             .Unwrap();
     }
 
-    public CancellationToken CancellationToken => _cancellationToken;
+    public CancellationToken CancellationToken => _cancellationTokenSource.Token;
 
     public long LeaseId => _leaseId;
 
@@ -50,15 +48,15 @@ public class EtcdLockLease : IAsyncDisposable
             try
             {
                 using AsyncDuplexStreamingCall<LeaseKeepAliveRequest, LeaseKeepAliveResponse> leaser =
-                    _etcdClient.LeaseKeepAlive(cancellationToken: _cancellationToken);
+                    _etcdClient.LeaseKeepAlive(cancellationToken: _cancellationTokenSource.Token);
 
-                while (!_cancellationToken.IsCancellationRequested)
+                while (!_cancellationTokenSource.IsCancellationRequested)
                 {
                     await leaser.RequestStream.WriteAsync(request)
                         .ConfigureAwait(false);
 
                     // new CancellationTokenSource is created to cancel the task with timeout
-                    if (await leaser.ResponseStream.MoveNext(_cancellationToken)
+                    if (await leaser.ResponseStream.MoveNext(_cancellationTokenSource.Token)
                         .ConfigureAwait(false))
                     {
                         LeaseKeepAliveResponse update = leaser.ResponseStream.Current;
@@ -85,14 +83,17 @@ public class EtcdLockLease : IAsyncDisposable
                     }
 
 
-                    await Task.Delay(timeToCheckInMilliseconds, _cancellationToken)
+                    await Task.Delay(timeToCheckInMilliseconds, _cancellationTokenSource.Token)
                         .ConfigureAwait(false);
                 }
             }
             finally
             {
-                await _cancellationTokenSource.CancelAsync()
-                    .ConfigureAwait(false);
+                if (!_cancellationTokenSource.IsCancellationRequested)
+                {
+                    await _cancellationTokenSource.CancelAsync()
+                        .ConfigureAwait(false);
+                }
             }
         }
         catch (OperationCanceledException)
@@ -107,8 +108,11 @@ public class EtcdLockLease : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        await _cancellationTokenSource.CancelAsync()
-            .ConfigureAwait(false);
+        if (!_cancellationTokenSource.IsCancellationRequested)
+        {
+            await _cancellationTokenSource.CancelAsync()
+                .ConfigureAwait(false);
+        }
 
         try
         {
@@ -136,7 +140,7 @@ public class EtcdLockLease : IAsyncDisposable
         }
     }
 
-    public static async ValueTask<EtcdLockLease?> CreateAsync(EtcdClient etcdClient, int lockTimeoutInSeconds, CancellationToken cancellationToken, ILogger logger)
+    public static async ValueTask<EtcdLockLease?> CreateAsync(EtcdClient etcdClient, int timeToLiveInSeconds, CancellationToken cancellationToken, ILogger logger)
     {
         ArgumentNullException.ThrowIfNull(etcdClient);
         ArgumentNullException.ThrowIfNull(logger);
@@ -144,12 +148,12 @@ public class EtcdLockLease : IAsyncDisposable
         try
         {
             using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cancellationTokenSource.CancelAfter((lockTimeoutInSeconds * 1000) / 3); // 1/3 of the lease time
+            cancellationTokenSource.CancelAfter((timeToLiveInSeconds * 1000) / 3); // 1/3 of the lease time
 
             LeaseGrantResponse leaseGrantResponse = await etcdClient.LeaseGrantAsync(
                 new LeaseGrantRequest
                 {
-                    TTL = lockTimeoutInSeconds, // seconds
+                    TTL = timeToLiveInSeconds, // seconds
                 },
                 cancellationToken: cancellationTokenSource.Token)
                     .ConfigureAwait(false);

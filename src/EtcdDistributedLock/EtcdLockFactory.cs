@@ -16,11 +16,11 @@ public class EtcdLockFactory : IEtcdLockFactory
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public async ValueTask<IEtcdLock?> AcquireAsync(string name, int lockTimeoutInSeconds = 10, CancellationToken cancellationToken = default)
+    public async ValueTask<IEtcdLock?> AcquireAsync(string name, int timeToLiveInSeconds = 10, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(name);
 
-        EtcdLockLease? etcdLockLease = await EtcdLockLease.CreateAsync(_etcdClient, lockTimeoutInSeconds/*ms*/, cancellationToken, _logger)
+        EtcdLockLease? etcdLockLease = await EtcdLockLease.CreateAsync(_etcdClient, timeToLiveInSeconds/*ms*/, cancellationToken, _logger)
             .ConfigureAwait(false);
         if (etcdLockLease == null)
         {
@@ -30,7 +30,7 @@ public class EtcdLockFactory : IEtcdLockFactory
         try
         {
             using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cancellationTokenSource.CancelAfter((lockTimeoutInSeconds * 1000) / 3); // 1/3 of the lease time
+            cancellationTokenSource.CancelAfter((timeToLiveInSeconds * 1000) / 3); // 1/3 of the lease time
 
             CampaignResponse campaignResponse = await _etcdClient.CampaignAsync(
                 new CampaignRequest
