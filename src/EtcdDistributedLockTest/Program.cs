@@ -1,6 +1,12 @@
-# Etcd distributed lock
+﻿using dotnet_etcd;
+using EtcdLock;
+using Grpc.Core;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
-```c#
+namespace EtcdTest
+{
     internal class Program
     {
         private static readonly CancellationTokenSource cancellationTokenSource = new();
@@ -93,4 +99,4 @@
             Console.ReadLine();
         }
     }
-```
+}
