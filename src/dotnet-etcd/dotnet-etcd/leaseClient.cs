@@ -75,12 +75,139 @@ namespace dotnet_etcd
         /// LeaseKeepAlive keeps the lease alive by streaming keep alive requests from the client
         /// to the server and streaming keep alive responses from the server to the client.
         /// </summary>
-        /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
-        /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
-        /// <param name="cancellationToken">An optional token for canceling the call.</param>
-        /// <returns>The response received from the server.</returns>
-        public AsyncDuplexStreamingCall<LeaseKeepAliveRequest, LeaseKeepAliveResponse> LeaseKeepAlive(Metadata headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default)
-            => CallEtcd((connection) => connection._leaseClient.LeaseKeepAlive(headers, deadline, cancellationToken));
+        /// <param name="leaseGrantResponse">Granted lease. <see cref="LeaseGrant"/> and <see cref="LeaseGrantAsync"/></param>
+        /// <param name="cancellationTokenSource">Cancellation token source that reflects communication status between server and client.</param>
+        public Task LeaseKeepAlive(long leaseId, long ttl, CancellationTokenSource cancellationTokenSource) => CallEtcdAsync((connection) =>
+        {
+            ArgumentNullException.ThrowIfNull(cancellationTokenSource);
+
+            CancellationToken cancellationToken = cancellationTokenSource.Token;
+
+            async ValueTask WriteAsync(AsyncDuplexStreamingCall<LeaseKeepAliveRequest, LeaseKeepAliveResponse> leaser, LeaseKeepAliveRequest request, int timeoutInMilliseconds, CancellationToken cancellationToken)
+            {
+                // communication timeout
+                using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                cancellationTokenSource.CancelAfter(timeoutInMilliseconds);
+
+                await leaser.RequestStream.WriteAsync(request, cancellationTokenSource.Token)
+                    .ConfigureAwait(false);
+            }
+
+            async ValueTask<bool> MoveNextAsync(AsyncDuplexStreamingCall<LeaseKeepAliveRequest, LeaseKeepAliveResponse> leaser, int timeoutInMilliseconds, CancellationToken cancellationToken)
+            {
+                // communication timeout
+                using CancellationTokenSource cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                cancellationTokenSource.CancelAfter(timeoutInMilliseconds);
+
+                return await leaser.ResponseStream.MoveNext(cancellationTokenSource.Token)
+                    .ConfigureAwait(false);
+            }
+
+            async Task KeepAlive()
+            {
+                int timeToCheckInMilliseconds = (int)((ttl * 1000) / 3);
+                int communicationTimeoutInMilliseconds = timeToCheckInMilliseconds;
+                LeaseKeepAliveRequest request = new()
+                {
+                    ID = leaseId,
+                };
+
+                try
+                {
+                    try
+                    {
+                        using AsyncDuplexStreamingCall<LeaseKeepAliveRequest, LeaseKeepAliveResponse> leaser =
+                            connection._leaseClient.LeaseKeepAlive(cancellationToken: cancellationToken);
+
+                        while (!cancellationToken.IsCancellationRequested)
+                        {
+                            await WriteAsync(leaser, request, communicationTimeoutInMilliseconds, cancellationToken)
+                                .ConfigureAwait(false);
+
+                            if (!await MoveNextAsync(leaser, communicationTimeoutInMilliseconds, cancellationToken)
+                                    .ConfigureAwait(false))
+                            {
+                                try
+                                {
+                                    if (!cancellationTokenSource.IsCancellationRequested)
+                                    {
+#if NET8_0_OR_GREATER
+                                        await cancellationTokenSource.CancelAsync()
+                                            .ConfigureAwait(false);
+#else
+                                        cancellationTokenSource.Cancel();
+#endif
+                                    }
+                                }
+                                finally
+                                {
+                                    await leaser.RequestStream.CompleteAsync()
+                                        .ConfigureAwait(false);
+                                }
+
+                                break;
+                            }
+
+                            LeaseKeepAliveResponse update = leaser.ResponseStream.Current;
+                            if (update.ID != leaseId || update.TTL == 0) // expired
+                            {
+                                try
+                                {
+                                    if (!cancellationTokenSource.IsCancellationRequested)
+                                    {
+#if NET8_0_OR_GREATER
+                                        await cancellationTokenSource.CancelAsync()
+                                            .ConfigureAwait(false);
+#else
+                                        cancellationTokenSource.Cancel();
+#endif
+                                    }
+                                }
+                                finally
+                                {
+                                    await leaser.RequestStream.CompleteAsync()
+                                        .ConfigureAwait(false);
+                                }
+
+                                break;
+                            }
+
+                            await Task.Delay(timeToCheckInMilliseconds, cancellationToken)
+                                .ConfigureAwait(false);
+                        }
+                    }
+                    finally
+                    {
+                        if (!cancellationTokenSource.IsCancellationRequested)
+                        {
+
+#if NET8_0_OR_GREATER
+                            await cancellationTokenSource.CancelAsync()
+                                .ConfigureAwait(false);
+#else
+                            cancellationTokenSource.Cancel();
+#endif
+                        }
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    // operation was cancelled, it is acceptable
+                }
+                catch (RpcException ex) when (ex.StatusCode == StatusCode.Cancelled)
+                {
+                    // operation was cancelled, it is acceptable
+                }
+            }
+
+            return Task.Factory.StartNew(
+                (_) => KeepAlive(),
+                null,
+                cancellationToken,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Current)
+                .Unwrap();
+        });
 
         /// <summary>
         /// LeaseKeepAlive keeps the lease alive by streaming keep alive requests from the client
