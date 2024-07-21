@@ -75,7 +75,8 @@ namespace dotnet_etcd
         /// LeaseKeepAlive keeps the lease alive by streaming keep alive requests from the client
         /// to the server and streaming keep alive responses from the server to the client.
         /// </summary>
-        /// <param name="leaseGrantResponse">Granted lease. <see cref="LeaseGrant"/> and <see cref="LeaseGrantAsync"/></param>
+        /// <param name="leaseId">Granted lease identifier. <see cref="LeaseGrant"/> and <see cref="LeaseGrantAsync"/></param>
+        /// <param name="ttl">Granted lease time to live. <see cref="LeaseGrant"/> and <see cref="LeaseGrantAsync"/></param>
         /// <param name="cancellationTokenSource">Cancellation token source that reflects communication status between server and client.</param>
         public Task LeaseKeepAlive(long leaseId, long ttl, CancellationTokenSource cancellationTokenSource) => CallEtcdAsync((connection) =>
         {
