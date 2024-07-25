@@ -1,5 +1,15 @@
 # Etcd distributed lock
 
+If you want to see how it works run multiple instances of the program.
+
+## checkout
+```cmd
+git clone ...
+git submodule init
+git submodule update --remote
+```
+
+## example
 ```c#
     internal class Program
     {
