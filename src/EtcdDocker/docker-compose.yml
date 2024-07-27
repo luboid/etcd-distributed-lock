@@ -22,6 +22,8 @@ services:
             - *flag_initial_cluster_token
         volumes:
             - etcd1:/etcd_data
+        ports:
+          - 57001:2379 
 
     etcd-2:
         <<: *common_settings
@@ -38,6 +40,8 @@ services:
             - *flag_initial_cluster_token
         volumes:
             - etcd2:/etcd_data
+        ports:
+          - 57002:2379 
 
     etcd-3:
         <<: *common_settings
@@ -54,6 +58,8 @@ services:
             - *flag_initial_cluster_token
         volumes:
             - etcd3:/etcd_data
+        ports:
+          - 57003:2379 
 
 volumes:
     etcd1:
