@@ -124,6 +124,14 @@ public class EtcdLockLease : IAsyncDisposable
         {
             await _keepAlive;
         }
+        catch (OperationCanceledException)
+        {
+            // operation was cancelled
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.Cancelled) 
+        {
+            // operation was cancelled
+        }
         catch (Exception ex)
         {
             _logger?.LogTrace(ex, "Unexpected exception while revoking lease.");
