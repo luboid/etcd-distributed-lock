@@ -15,6 +15,7 @@ git submodule update --remote
     {
         private static readonly CancellationTokenSource cancellationTokenSource = new();
 
+        // update connection settion if it needs
         private static EtcdClient etcdClient = new EtcdClient("http://localhost:32770,http://localhost:32769,http://localhost:32768", configureChannelOptions: (options) =>
         {
             options.Credentials = ChannelCredentials.Insecure;

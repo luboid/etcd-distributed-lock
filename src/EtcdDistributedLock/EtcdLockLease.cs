@@ -2,6 +2,7 @@
 using Etcdserverpb;
 using Grpc.Core;
 using Microsoft.Extensions.Logging;
+using System.Threading;
 
 namespace EtcdLock;
 
@@ -22,7 +23,11 @@ public class EtcdLockLease : IAsyncDisposable
         _logger = logger;
         _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
-        _keepAlive = etcdClient.LeaseKeepAlive(leaseId, ttlInSeconds, _cancellationTokenSource);
+
+        int keepAliveTimeout = (int)_ttlInSeconds * 1000 / 3;
+        int communicationTimeout = keepAliveTimeout / 2;
+
+        _keepAlive = etcdClient.LeaseKeepAlive(_cancellationTokenSource, leaseId, keepAliveTimeout);
         //    Task.Factory.StartNew(
         //    (_) => KeepAlive(),
         //    null,

@@ -11,7 +11,8 @@ namespace EtcdTest
     {
         private static readonly CancellationTokenSource cancellationTokenSource = new();
 
-        private static EtcdClient etcdClient = new EtcdClient("http://localhost:32770,http://localhost:32769,http://localhost:32768", configureChannelOptions: (options) =>
+        // update connection settion if it needs
+        private static EtcdClient etcdClient = new EtcdClient("http://localhost:53999,http://localhost:54000,http://localhost:53998", configureChannelOptions: (options) =>
         {
             options.Credentials = ChannelCredentials.Insecure;
         });
