@@ -7,8 +7,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EtcdDistributedLockTest", "
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EtcdDistributedLock", "EtcdDistributedLock\EtcdDistributedLock.csproj", "{38939C1A-9088-466A-9C0D-4AC67E1B6D0F}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "dotnet-etcd", "dotnet-etcd\dotnet-etcd\dotnet-etcd.csproj", "{684FDDF5-4769-414C-BB2E-9F0407DBD8A6}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{918D02E6-BA6B-403B-BE7B-2B3F6EF28E21}"
 	ProjectSection(SolutionItems) = preProject
 		EtcdDocker\docker-compose.yml = EtcdDocker\docker-compose.yml
@@ -29,10 +27,6 @@ Global
 		{38939C1A-9088-466A-9C0D-4AC67E1B6D0F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{38939C1A-9088-466A-9C0D-4AC67E1B6D0F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{38939C1A-9088-466A-9C0D-4AC67E1B6D0F}.Release|Any CPU.Build.0 = Release|Any CPU
-		{684FDDF5-4769-414C-BB2E-9F0407DBD8A6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{684FDDF5-4769-414C-BB2E-9F0407DBD8A6}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{684FDDF5-4769-414C-BB2E-9F0407DBD8A6}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{684FDDF5-4769-414C-BB2E-9F0407DBD8A6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

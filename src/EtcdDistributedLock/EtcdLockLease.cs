@@ -2,7 +2,6 @@
 using Etcdserverpb;
 using Grpc.Core;
 using Microsoft.Extensions.Logging;
-using System.Threading;
 
 namespace EtcdLock;
 
@@ -28,89 +27,11 @@ public class EtcdLockLease : IAsyncDisposable
         int communicationTimeout = keepAliveTimeout / 2;
 
         _keepAlive = etcdClient.LeaseKeepAlive(_cancellationTokenSource, leaseId, keepAliveTimeout);
-        //    Task.Factory.StartNew(
-        //    (_) => KeepAlive(),
-        //    null,
-        //    _cancellationTokenSource.Token,
-        //    TaskCreationOptions.LongRunning,
-        //    TaskScheduler.Current)
-        //    .Unwrap();
     }
 
     public CancellationToken CancellationToken => _cancellationTokenSource.Token;
 
     public long LeaseId => _leaseId;
-
-    // private async Task KeepAlive()
-    // {
-    //     int timeToCheckInMilliseconds = (int)((_ttlInSeconds * 1000) / 3);
-    //     LeaseKeepAliveRequest request = new()
-    //     {
-    //         ID = _leaseId
-    //     };
-    //
-    //     try
-    //     {
-    //         try
-    //         {
-    //             using AsyncDuplexStreamingCall<LeaseKeepAliveRequest, LeaseKeepAliveResponse> leaser =
-    //                 _etcdClient.LeaseKeepAlive(cancellationToken: _cancellationTokenSource.Token);
-    //
-    //             while (!_cancellationTokenSource.IsCancellationRequested)
-    //             {
-    //                 await leaser.RequestStream.WriteAsync(request)
-    //                     .ConfigureAwait(false);
-    //
-    //                 // new CancellationTokenSource is created to cancel the task with timeout
-    //                 if (await leaser.ResponseStream.MoveNext(_cancellationTokenSource.Token)
-    //                     .ConfigureAwait(false))
-    //                 {
-    //                     LeaseKeepAliveResponse update = leaser.ResponseStream.Current;
-    //                     if (update.ID != _leaseId || update.TTL == 0) // expired
-    //                     {
-    //                         await _cancellationTokenSource.CancelAsync()
-    //                             .ConfigureAwait(false);
-    //
-    //                         await leaser.RequestStream.CompleteAsync()
-    //                             .ConfigureAwait(false);
-    //
-    //                         break;
-    //                     }
-    //                 }
-    //                 else
-    //                 {
-    //                     await _cancellationTokenSource.CancelAsync()
-    //                         .ConfigureAwait(false);
-    //
-    //                     await leaser.RequestStream.CompleteAsync()
-    //                         .ConfigureAwait(false);
-    //
-    //                     break;
-    //                 }
-    //
-    //
-    //                 await Task.Delay(timeToCheckInMilliseconds, _cancellationTokenSource.Token)
-    //                     .ConfigureAwait(false);
-    //             }
-    //         }
-    //         finally
-    //         {
-    //             if (!_cancellationTokenSource.IsCancellationRequested)
-    //             {
-    //                 await _cancellationTokenSource.CancelAsync()
-    //                     .ConfigureAwait(false);
-    //             }
-    //         }
-    //     }
-    //     catch (OperationCanceledException)
-    //     {
-    //         // operation was cancelled
-    //     }
-    //     catch (Exception ex)
-    //     {
-    //         _logger?.LogTrace(ex, "Unexpected exception while keeping lease live.");
-    //     }
-    // }
 
     public async ValueTask DisposeAsync()
     {
@@ -134,7 +55,7 @@ public class EtcdLockLease : IAsyncDisposable
         }
         catch (Exception ex)
         {
-            _logger?.LogTrace(ex, "Unexpected exception while revoking lease.");
+            _logger?.LogTrace(ex, "Unexpected exception while waiting keep alive task to end.");
         }
 
         _cancellationTokenSource.Dispose();

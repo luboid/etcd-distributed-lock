@@ -1,4 +1,0 @@
-[submodule "src/dotnet-etcd"]
-	path = src/dotnet-etcd
-	url = https://github.com/luboid/dotnet-etcd.git
-	branch = feature-lease-keep-alive-with-cancellation-token-source
